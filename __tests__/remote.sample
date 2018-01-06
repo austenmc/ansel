@@ -1,0 +1,26 @@
+{
+  "bar.cr2":{
+    "type":"file",
+    "name":"bar.cr2",
+    "directory":"/DCIM/100CANON",
+    "path":"/DCIM/100CANON/bar.cr2",
+    "size":4,
+    "modified":"2017-11-16T08:00:21.020Z"
+  },
+  "baz.cr2":{
+    "type":"file",
+    "name":"baz.cr2",
+    "directory":"/DCIM/100CANON",
+    "path":"/DCIM/100CANON/baz.cr2",
+    "size":4,
+    "modified":"2017-11-16T08:00:21.020Z"
+  },
+  "foo.cr2":{
+    "type":"file",
+    "name":"foo.cr2",
+    "directory":"/DCIM/100CANON",
+    "path":"/DCIM/100CANON/foo.cr2",
+    "size":0,
+    "modified":"2017-12-16T08:00:09.439Z"
+  }
+}
