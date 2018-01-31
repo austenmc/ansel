@@ -32,7 +32,7 @@
     "test": "npm run test-only",
     "test-only": "jest --coverage",
     "test:watch": "jest --watch",
-    "build": "babel src/**/*.js -d dist",
+    "build": "babel src/**/*.js -d dist; cp package.json dist",
     "build:watch": "babel --watch src/**/*.js -d dist"
   },
   "author": "Austen McDonald <austen.mcdonald@gmail.com>",

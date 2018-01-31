@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /** @flow */
 const program = require('commander');
+const FlashAir = require('./flashair');
 
 let hostValue;
 let directoryValue;
@@ -24,3 +25,10 @@ if (typeof directoryValue === 'undefined') {
   console.error('Error: no remote directory specified');
   process.exit(1);
 }
+
+FlashAir.list(hostValue, directoryValue, (err, result) => {
+  if (err) {
+    process.exit(err);
+  }
+  console.log(result);
+});
