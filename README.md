@@ -1,6 +1,3 @@
-[![MIT License][license-badge]][LICENSE]
-[![PRs Welcome][prs-badge]][prs]
-
 # ansel
 
 Lightweight scripts to manage an automatic photo workflow from camera to remote storage.
@@ -17,10 +14,13 @@ On my local machine, I made some modifications to make this workflow possible. Y
 Static IP:
 
 Since I'm using a laptop in clamshell mode, I'm having it ignore the lid:
-https://askubuntu.com/questions/15520/how-can-i-tell-ubuntu-to-do-nothing-when-i-close-my-laptop-lid
-https://askubuntu.com/questions/141866/keep-ubuntu-server-running-on-a-laptop-with-the-lid-closed/594417#594417
+* https://askubuntu.com/questions/15520/how-can-i-tell-ubuntu-to-do-nothing-when-i-close-my-laptop-lid
+* https://askubuntu.com/questions/141866/keep-ubuntu-server-running-on-a-laptop-with-the-lid-closed/594417#594417
 
-Provides a basic template, batteries included:
+
+# Development
+
+This app is based on a generic NodeJS CLI tmeplate. Some batteries included:
 
 + ES6 + babel,
   + Removes Flow type annotations,
