@@ -5,8 +5,10 @@ Lightweight scripts to manage an automatic photo workflow from camera to remote 
 Install dropbox and dropboxd using these instructions:
 https://www.digitalocean.com/community/tutorials/how-to-install-dropbox-client-as-a-service-on-ubuntu-14-04
 
-You then have to add folders manually to exclude :(
+You then have to add folders manually to exclude, and you have to include all of them :(
+```
 dropbox exclude [dirs]
+```
 
 ## Devops
 On my local machine, I made some modifications to make this workflow possible. You should probably ignore these.
