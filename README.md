@@ -1,24 +1,47 @@
 # ansel
 
-Lightweight scripts to manage an automatic photo workflow from camera to remote storage.
+Lightweight scripts to manage an automatic photo download and archive workflow from camera to local storage, using Toshiba FlashAir SD cards.
 
-Install dropbox and dropboxd using these instructions:
-https://www.digitalocean.com/community/tutorials/how-to-install-dropbox-client-as-a-service-on-ubuntu-14-04
+Features:
 
-You then have to add folders manually to exclude, and you have to include all of them :(
+* Lists remote files on a Toshia FlashAir SD card using their [API](https://flashair-developers.com/en/documents/api/configcgi/).
+* Syncs files between a remote FlashAir and a local directory. Only syncs top-level directory; does not recurse into remote directories. Syncing currently means downloading files to a local folder `RAW-yyyy-mm` using the modification date of the remote file. This is so I can more easily manage these large folders using Dropbox.
+* Can send messages using an FB Messenger bot.
+
+Yes, this is hodgepodge of stuff, but it's what I need.
+
+# Installation
+
 ```
-dropbox exclude [dirs]
+yarn install
 ```
 
-## Devops
-On my local machine, I made some modifications to make this workflow possible. You should probably ignore these.
+# Usage
 
-Static IP:
+```
+$ ansel --help
 
-Since I'm using a laptop in clamshell mode, I'm having it ignore the lid:
-* https://askubuntu.com/questions/15520/how-can-i-tell-ubuntu-to-do-nothing-when-i-close-my-laptop-lid
-* https://askubuntu.com/questions/141866/keep-ubuntu-server-running-on-a-laptop-with-the-lid-closed/594417#594417
+  Usage: ansel [options] [command]
 
+  Lightweight scripts to manage an automatic photo workflow from Toshiba FlashAir to local storage.
+
+
+  Options:
+
+    -V, --version  output the version number
+    -h, --help     output usage information
+
+
+  Commands:
+
+    remote-listing <host> <directory>      List contents of remote directory
+    local-listing <directory>              List contents of local directory
+    sync-files                             Sync contents of remote directory to local directory
+    paths                                  Extract file paths from an Ansel JSON listing
+    send-message <psid> <token> <message>  Send simple message via FB Messenger bot
+    send-image <psid> <token> <file>       Send image attachment via FB Messenger bot
+    help [cmd]                             display help for [cmd]
+```
 
 # Development
 
