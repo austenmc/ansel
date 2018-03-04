@@ -90,8 +90,8 @@ then
   sync_output=$(echo $sync_input | $ansel sync-files)
   if [[ $? != 0 ]]; then echo -e "File sync failed:\\n$sync_output"; exit 1; fi
 
-  successfully_synced=$(echo $sync_output | $ansel paths --status=OK)
-  failed_synced=$(echo $sync_output | $ansel paths --status=FAILED)
+  successfully_synced=$(echo $sync_output | $ansel paths --status=ok)
+  failed_synced=$(echo $sync_output | $ansel paths --status=failed)
 
   successfully_synced_count=$(echo $successfully_synced | wc -l)
   failed_synced_count=$(echo $failed_synced | wc -l)
@@ -102,8 +102,8 @@ then
     first=$(echo $successfully_synced | head -1)
     last=$(echo $successfully_synced | tail -1)
 
-    send_preivew "$first" "$temp_dir"
-    send_preivew "$last" "$temp_dir"
+    send_preview "$first" "$temp_dir"
+    send_preview "$last" "$temp_dir"
   fi
 
   if [[ $failed_synced_count != 0 ]]

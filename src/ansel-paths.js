@@ -8,7 +8,7 @@ const paths = require('./paths');
 program
   .name('paths')
   .description('Print a simple list of paths extracted from a file list provided on stdin.')
-  .option('--status <status>', 'Return only files with specified status. Try OK or FAILED.')
+  .option('--status <status>', 'Return only files with specified status. Try ok or failed.')
   .parse(process.argv);
 
 const inputChunks = [];
