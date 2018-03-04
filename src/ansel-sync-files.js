@@ -2,7 +2,7 @@
 /** @flow */
 const _ = require('lodash');
 const program = require('commander');
-const syncFiles = require('./syncFiles');
+const { syncFiles } = require('./syncFiles');
 
 const { stdin } = process;
 

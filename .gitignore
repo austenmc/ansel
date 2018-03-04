@@ -20,3 +20,5 @@ jsconfig.json
 .DS_Store
 tmp/
 *.un~
+*.swp
+tags

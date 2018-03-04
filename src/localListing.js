@@ -36,10 +36,21 @@ function walk(dir: string): FileListing {
 }
 
 function localListing(directory: string): FileListing {
-  let output = {};
+  const output = {};
 
   if (fs.existsSync(directory)) {
-    output = walk(directory);
+    const stat = fs.statSync(directory);
+    const name = path.basename(directory);
+    const parent = path.dirname(directory);
+    if (stat.isDirectory()) {
+      output[name] = {
+        type: 'directory',
+        name,
+        path: directory,
+        directory: parent,
+        contents: walk(directory),
+      };
+    }
   }
 
   return output;

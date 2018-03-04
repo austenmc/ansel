@@ -18,7 +18,7 @@
     "babel-preset-stage-3": "~6.24.1",
     "eslint": "~4.10.0",
     "eslint-config-airbnb-base": "~12.1.0",
-    "eslint-plugin-flowtype": "^2.40.1",
+    "eslint-plugin-flowtype": "^2.46.1",
     "eslint-plugin-import": "~2.8.0",
     "flow-bin": "~0.58.0",
     "jest": "~21.2.1"
@@ -30,7 +30,7 @@
     "typecheck": "flow check",
     "pretest": "npm run lint",
     "test": "npm run test-only",
-    "test-only": "jest --coverage",
+    "test-only": "__tests__/preflight.sh && jest --coverage",
     "test:watch": "jest --watch",
     "build": "babel src/**/*.js -d dist; cp package.json dist",
     "build:watch": "babel --watch src/**/*.js -d dist"
@@ -58,6 +58,7 @@
     "date-fns": "^1.29.0",
     "lodash": "^4.17.4",
     "path": "^0.12.7",
-    "request": "^2.83.0"
+    "request": "^2.83.0",
+    "request-promise-native": "^1.0.5"
   }
 }

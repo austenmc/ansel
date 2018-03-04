@@ -3,8 +3,8 @@
 const program = require('commander');
 const FlashAir = require('./flashair');
 
-let hostValue;
-let directoryValue;
+let hostValue = '';
+let directoryValue = '';
 
 program
   .name('remote-listing')
@@ -30,5 +30,7 @@ FlashAir.list(hostValue, directoryValue, (err, result) => {
   if (err) {
     process.exit(err);
   }
-  console.log(result);
+  const listing = FlashAir.fileListToListing(result);
+
+  console.log(listing);
 });

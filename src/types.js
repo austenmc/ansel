@@ -26,9 +26,13 @@ export type FileListing = {
   [string]: File | Directory
 };
 
+export type DirectoryListing = {
+  [string]: Directory
+};
+
 export type SyncListing = {
-  remote: FileListing,
-  local: FileListing,
+  remote: DirectoryListing,
+  local: DirectoryListing,
 };
 
 /* eslint-enable no-use-before-define */

@@ -3,17 +3,20 @@ import type { File, Directory, FileListing, SyncListing } from './types';
 
 const _ = require('lodash');
 const dateFns = require('date-fns');
-// const FlashAir = require('./flashair');
+const fs = require('fs');
+const FlashAir = require('./flashair');
+const path = require('path');
 
 function directoryFromDate(mtime: Date): string {
   return `RAW-${dateFns.format(mtime, 'YYYY-MM')}`;
 }
 
 // Uses size to compare the files, so is vulnerable to changing file contents.
-function hasUpToDateLocal(file: File, local: FileListing): boolean {
+function hasUpToDateLocal(file: File, local: Directory): boolean {
   const dir = directoryFromDate(file.modified);
-  if (_.has(local, dir) && local[dir].type === 'directory') {
-    const contents = (local[dir]: Directory);
+
+  if (_.has(local.contents, dir) && local.contents[dir].type === 'directory') {
+    const { contents } = (local.contents[dir]: Directory);
     if (_.has(contents, file.name)) {
       if (contents[file.name].size === file.size) {
         return true;
@@ -23,20 +26,74 @@ function hasUpToDateLocal(file: File, local: FileListing): boolean {
   return false;
 }
 
-function syncFiles(listing: SyncListing): FileListing {
+// Return a flat file listing, no directories, of remote files
+// that need to be synced.
+export function filesToSync(listing: SyncListing): FileListing {
+  const localKeys = _.keys(listing.local);
+  const localDir = listing.local[localKeys[0]];
+  const remoteKeys = _.keys(listing.remote);
+  const remoteDir = listing.remote[remoteKeys[0]];
   const output = {};
 
-  _.forEach(listing.remote, (file: File, name: string) => {
-    if (!hasUpToDateLocal(file, listing.local)) {
+  _.forEach(remoteDir.contents, (file: File, name: string) => {
+    if (!hasUpToDateLocal(file, localDir)) {
       output[name] = file;
-
-      //      FlashAir.download();
-
-      output[name].status = 'OK';
     }
   });
 
   return output;
 }
 
-module.exports = syncFiles;
+export async function syncFiles(listing: SyncListing): FileListing {
+  const localKeys = _.keys(listing.local);
+  if (localKeys.length < 1) {
+    console.error('Error: No local destination directory specified.');
+    process.exit(1);
+  }
+  if (localKeys.length > 1) {
+    console.error('Error: Too many destination directories specified.');
+    process.exit(1);
+  }
+  const localDir = listing.local[localKeys[0]];
+
+  const remoteKeys = _.keys(listing.remote);
+  if (remoteKeys.length < 1) {
+    console.error('Error: No remote source directory specified.');
+    process.exit(1);
+  }
+  if (remoteKeys.length > 1) {
+    console.error('Error: Too many remote source directories specified.');
+    process.exit(1);
+  }
+
+  const files = filesToSync(listing);
+  const output = {};
+
+  _.forEach(files, async (file: File, name: string) => {
+    try {
+      const dir = directoryFromDate(file.modified);
+      const dest = path.join(localDir.path, dir);
+
+      if (!fs.existsSync(dest)) {
+        fs.mkdirSync(dest);
+      }
+
+      await FlashAir.download(file.path, dest);
+
+      // check that the local file estsis
+      fs.stat(dest, (err, stats) => {
+        if (err) {
+          throw new Error(err);
+        }
+        if (stats.size !== file.size) {
+          throw new Error(`Error: ${name} downloaded but wrong size`);
+        }
+      });
+      output[name] = { ...file, status: 'ok' };
+    } catch (e) {
+      output[name] = { ...file, status: 'failed' };
+    }
+  });
+
+  return output;
+}

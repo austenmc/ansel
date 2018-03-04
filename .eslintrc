@@ -12,6 +12,7 @@
     "flowtype"
   ],
   "rules": {
+    "no-bitwise": "off",
     "no-console": "off",
     "import/no-dynamic-require": "off",
     "max-len": "off",
