@@ -6,11 +6,11 @@ const FlashAir = {};
 
 FlashAir.list = (host: string, path: string, callback: Function) => {
   const url = `${host}/command.cgi?op=100&DIR=${encodeURIComponent(path)}`;
-  request.get({ url }, (err, httpResponse) => {
+  request.get({ url }, (err, httpResponse, body) => {
     let result = '';
 
     if (!err) {
-      result = httpResponse;
+      result = body;
     }
 
     callback(err, result);
@@ -36,31 +36,25 @@ FlashAir.download = (source: string, destination: string): Promise<*> => {
   return p;
 };
 
-function pad(num, size): string {
-  const s = `000000000${num}`;
-  return s.substr(s.length - size);
-}
-
 FlashAir.dateFromDateTimeBits = (date: string, time: string) => {
   const t = parseInt(time, 10);
   const d = parseInt(date, 10);
 
   const day = d & 0b0000000000011111;
-  const month = (d & 0b0000000111100000) >> 5;
+  const month = ((d & 0b0000000111100000) >> 5) - 1; // JS months are 0 based.
   const year = ((d & 0b1111111000000000) >> 9) + 1980;
 
-  const second = (t & 0b0000000000011111) * 2;
+  const seconds = (t & 0b0000000000011111) * 2;
   const minute = (t & 0b0000011111100000) >> 5;
   const hour = (t & 0b1111100000000000) >> 11;
 
-  const dateString = `${pad(year, 4)}-${pad(month, 2)}-${pad(day, 2)}T${pad(hour, 2)}:${pad(minute, 2)}:${pad(second, 2)}`;
-  return new Date(dateString);
+  return new Date(year, month, day, hour, minute, seconds);
 };
 
-FlashAir.fileTypeFromBits = (type: string) => (parseInt(type, 10) & 0b100000 ? 'directory' : 'file');
+FlashAir.fileTypeFromBits = (type: string) => ((parseInt(type, 10) & 0b10000) ? 'directory' : 'file');
 
 FlashAir.fileListToListing = (fileList: string) => {
-  const lines = fileList.split('\n');
+  const lines = fileList.split('\r\n');
 
   // Remove the first line, which is name of the device?
   lines.splice(0, 1);
