@@ -44,7 +44,7 @@ export function filesToSync(listing: SyncListing): FileListing {
   return output;
 }
 
-export async function syncFiles(listing: SyncListing): FileListing {
+export async function syncFiles(host: string, listing: SyncListing): FileListing {
   const localKeys = _.keys(listing.local);
   if (localKeys.length < 1) {
     console.error('Error: No local destination directory specified.');
@@ -69,16 +69,17 @@ export async function syncFiles(listing: SyncListing): FileListing {
   const files = filesToSync(listing);
   const output = {};
 
-  _.forEach(files, async (file: File, name: string) => {
+  for (const file of files) {
     try {
-      const dir = directoryFromDate(file.modified);
-      const dest = path.join(localDir.path, dir);
+      const name = file.name;
+      const dir = path.join(localDir.path, directoryFromDate(file.modified));
+      const dest = path.join(dir, name);
 
-      if (!fs.existsSync(dest)) {
-        fs.mkdirSync(dest);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir);
       }
 
-      await FlashAir.download(file.path, dest);
+      await FlashAir.download(`${host}/${file.path}`, dest);
 
       // check that the local file estsis
       fs.stat(dest, (err, stats) => {
@@ -93,7 +94,7 @@ export async function syncFiles(listing: SyncListing): FileListing {
     } catch (e) {
       output[name] = { ...file, status: 'failed' };
     }
-  });
+  };
 
   return output;
 }
