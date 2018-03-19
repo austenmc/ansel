@@ -51,24 +51,24 @@ describe('syncFiles', () => {
         name: 'Destination',
         path: '/Destination',
         contents: {
-          'RAW-2018-01': {
+          'Photos-2018-01': {
             type: 'directory',
-            name: 'RAW-2018-01',
-            path: '/RAW-2018-01',
+            name: 'Photos-2018-01',
+            path: '/Photos-2018-01',
             contents: {
               'file.3': {
-                directory: '/RAW-2018-01',
+                directory: '/Photos-2018-01',
                 modified: new Date('2018-01-01T06:05:02'),
                 name: 'file.3',
-                path: '/RAW-2018-01/file.4',
+                path: '/Photos-2018-01/file.4',
                 size: 5,
                 type: 'file',
               },
               'file.4': {
-                directory: '/RAW-2018-01',
+                directory: '/Photos-2018-01',
                 modified: new Date('2018-01-01T06:05:02'),
                 name: 'file.4',
-                path: '/RAW-2018-01/file.4',
+                path: '/Photos-2018-01/file.4',
                 size: 7,
                 type: 'file',
               },

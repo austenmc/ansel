@@ -9,11 +9,11 @@ https://www.digitalocean.com/community/tutorials/how-to-install-dropbox-client-a
 
 You then have to add folders manually to exclude, and you have to include all of them :(
 ```
-dropbox exclude [dirs]
+dropbox exclude add [dirs]
 ```
 
 ## Devops
-Static IP:
+Static IP: 10.0.0.5
 
 Since I'm using a laptop in clamshell mode, I'm having it ignore the lid:
 * https://askubuntu.com/questions/15520/how-can-i-tell-ubuntu-to-do-nothing-when-i-close-my-laptop-lid

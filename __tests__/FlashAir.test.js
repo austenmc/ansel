@@ -4,10 +4,11 @@ import FlashAir from '../src/flashair';
 
 describe('FlashAir', () => {
   it('parses file type=directory bits', () => {
-    expect(FlashAir.fileTypeFromBits(`${0b1110000}`)).toEqual('directory');
+    expect(FlashAir.fileTypeFromBits(`${0b1111000}`)).toEqual('directory');
   });
+
   it('parses file type=file bits', () => {
-    expect(FlashAir.fileTypeFromBits(`${0b1010000}`)).toEqual('file');
+    expect(FlashAir.fileTypeFromBits(`${0b1101000}`)).toEqual('file');
   });
 
   it('parses date bits', () => {
@@ -16,10 +17,10 @@ describe('FlashAir', () => {
 
   it('converts command.cgi output to FileListing', () => {
     const filelist =
-`WLANSD_FILELIST
-/DCIM,file.1,7,${0b1010000},${0b0100110000100001},${0b0011000010100001}
-/DCIM,file.2,7,${0b1010000},${0b0100110000100001},${0b0011000010100001}
-/DCIM,directory.1,7,${0b1110000},${0b0100110000100001},${0b0011000010100001}
+`WLANSD_FILELIST\r
+/DCIM,file.1,7,${0b1000000},${0b0100110000100001},${0b0011000010100001}\r
+/DCIM,file.2,7,${0b1000000},${0b0100110000100001},${0b0011000010100001}\r
+/DCIM,directory.1,7,${0b1110000},${0b0100110000100001},${0b0011000010100001}\r
 `;
     expect(FlashAir.fileListToListing(filelist)).toEqual({
       'file.2': {

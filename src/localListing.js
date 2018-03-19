@@ -1,11 +1,11 @@
 /** @flow */
-import type { FileListing } from './types';
+import type { Listing } from './types';
 
 const fs = require('fs');
 const path = require('path');
 
-function walk(dir: string): FileListing {
-  const o: FileListing = {};
+function walk(dir: string): Listing {
+  const o: Listing = {};
 
   fs.readdirSync(dir).filter((f) => f && f[0] !== '.') // Ignore hidden files
     .forEach((f) => {
@@ -35,7 +35,7 @@ function walk(dir: string): FileListing {
   return o;
 }
 
-function localListing(directory: string): FileListing {
+function localListing(directory: string): Listing {
   const output = {};
 
   if (fs.existsSync(directory)) {

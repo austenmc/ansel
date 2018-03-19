@@ -17,12 +17,12 @@ program
   })
   .parse(process.argv);
 
-if (hostValue.length == 0) {
+if (hostValue.length === 0) {
   console.error('Error: no host specified');
   process.exit(1);
 }
 
-if (directoryValue.length == 0) {
+if (directoryValue.length === 0) {
   console.error('Error: no remote directory specified');
   process.exit(1);
 }
@@ -42,7 +42,7 @@ FlashAir.list(hostValue, directoryValue, (err, result) => {
       directory: parent,
       path: directoryValue,
       contents: listing,
-    }
+    },
   };
 
   console.log(JSON.stringify(output));

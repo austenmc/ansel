@@ -19,20 +19,19 @@ FlashAir.list = (host: string, path: string, callback: Function) => {
 
 FlashAir.download = (source: string, destination: string): Promise<*> => {
   const p = new Promise((resolve, reject) => {
-    const stream = fs.createWriteStream(destination);
-    // TODO: this is not sequential so results in resolving a rejected promise on stream error
-    stream.on('error', (err) => {
-      reject(err);
-    });
-
-    request.get({ uri: source }, (err) => {
-      if (err) {
-      console.log(err);
+    request.get({ uri: source })
+      .on('error', (err) => {
+        console.log(`request err: ${err}`);
         reject(err);
-      } else {
+      })
+      .pipe(fs.createWriteStream(destination))
+      .on('close', () => {
         resolve();
-      }
-    }).pipe(stream);
+      })
+      .on('error', (err) => {
+        console.log(`write err: ${err}`);
+        reject(err);
+      });
   });
 
   return p;

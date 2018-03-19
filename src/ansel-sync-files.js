@@ -17,7 +17,7 @@ program
   })
   .parse(process.argv);
 
-if (hostValue.length == 0) {
+if (hostValue.length === 0) {
   console.error('Error: no host specified');
   process.exit(1);
 }

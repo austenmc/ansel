@@ -1,14 +1,10 @@
 /** @flow */
 const request = require('request');
 
-function sendMessage(psid: string, token: string, message: string, callback: Function) {
-  const url = `https://graph.facebook.com/v2.6/me/messages?access_token=${token}`;
+function sendMessage(psid: string, message: string, callback: Function) {
+  const url = `https://ansel.glitch.me/messages/${psid}`;
   const data = {
-    messaging_type: 'UPDATE',
-    recipient: { id: psid },
-    message: {
-      text: message,
-    },
+    message,
   };
 
   request({

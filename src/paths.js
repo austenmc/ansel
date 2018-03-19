@@ -1,9 +1,9 @@
 /** @flow */
-import type { FileStatus, FileListing } from './types';
+import type { FileStatus, Listing } from './types';
 
 const _ = require('lodash');
 
-function paths(listing: FileListing, status: ?FileStatus): string {
+function paths(listing: Listing, status: ?FileStatus): string {
   let output = '';
 
   _.forEach(listing, (value) => {

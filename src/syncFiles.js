@@ -8,7 +8,7 @@ const FlashAir = require('./flashair');
 const path = require('path');
 
 function directoryFromDate(mtime: Date): string {
-  return `RAW-${dateFns.format(mtime, 'YYYY-MM')}`;
+  return `Photos-${dateFns.format(mtime, 'YYYY-MM')}`;
 }
 
 // Uses size to compare the files, so is vulnerable to changing file contents.
@@ -69,12 +69,14 @@ export async function syncFiles(host: string, listing: SyncListing): FileListing
   const files = filesToSync(listing);
   const output = {};
 
-  for (const file of files) {
-    try {
-      const name = file.name;
-      const dir = path.join(localDir.path, directoryFromDate(file.modified));
-      const dest = path.join(dir, name);
+  Object.keys(files).reduce(async (prev, name) => {
+    await prev;
 
+    const file = (files[name]: File);
+    const dir = path.join(localDir.path, directoryFromDate(file.modified));
+    const dest = path.join(dir, name);
+
+    try {
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir);
       }
@@ -94,7 +96,7 @@ export async function syncFiles(host: string, listing: SyncListing): FileListing
     } catch (e) {
       output[name] = { ...file, status: 'failed' };
     }
-  };
+  }, Promise.resolve());
 
   return output;
 }

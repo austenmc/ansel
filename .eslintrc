@@ -12,6 +12,14 @@
     "flowtype"
   ],
   "rules": {
+    "no-restricted-syntax": [
+      2,
+      'BreakStatement',
+      'DebuggerStatement',
+      'LabeledStatement',
+      'WithStatement',
+    ],
+    "no-await-in-loop": "off",
     "no-bitwise": "off",
     "no-console": "off",
     "import/no-dynamic-require": "off",

@@ -5,7 +5,7 @@ Lightweight scripts to manage an automatic photo download and archive workflow f
 Features:
 
 * Lists remote files on a Toshia FlashAir SD card using their [API](https://flashair-developers.com/en/documents/api/configcgi/).
-* Syncs files between a remote FlashAir and a local directory. Only syncs top-level directory; does not recurse into remote directories. Syncing currently means downloading files to a local folder `RAW-yyyy-mm` using the modification date of the remote file. This is so I can more easily manage these large folders using Dropbox.
+* Syncs files between a remote FlashAir and a local directory. Only syncs top-level directory; does not recurse into remote directories. Syncing currently means downloading files to a local folder `Photos-yyyy-mm` using the modification date of the remote file. This is so I can more easily manage these large folders using Dropbox.
 * Can send messages using an FB Messenger bot.
 
 Yes, this is hodgepodge of stuff, but it's what I need.

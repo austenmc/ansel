@@ -2,18 +2,16 @@
 /** @flow */
 const _ = require('lodash');
 const program = require('commander');
-const sendMessage = require('./sendMessage');
+const request = require('request');
 
 let psidValue = '';
-let messageValue = '';
 
 program
-  .name('send-message')
-  .description('Send simple message via the Ansel FB Messenger bot.')
-  .arguments('<psid> <message>')
-  .action((psid, message) => {
+  .name('check-messages')
+  .description('Get pending messages via FB Messenger bot')
+  .arguments('<psid>')
+  .action((psid) => {
     psidValue = psid || '';
-    messageValue = message || '';
   })
   .parse(process.argv);
 
@@ -22,12 +20,12 @@ if (psidValue === '') {
   process.exit(1);
 }
 
-if (messageValue === '') {
-  console.error('Error: no message specified');
-  process.exit(1);
-}
+const url = `https://ansel.glitch.me/messages/${psidValue}`;
 
-sendMessage(psidValue, messageValue, (err, httpResponse, jsonBody) => {
+request({
+  url,
+  method: 'GET',
+}, (err, httpResponse, jsonBody) => {
   if (err) {
     console.error('Error: ', err);
     process.exit(1);
@@ -37,4 +35,6 @@ sendMessage(psidValue, messageValue, (err, httpResponse, jsonBody) => {
     console.error('Error: ', jsonBody.error.message);
     process.exit(1);
   }
+
+  console.log(jsonBody);
 });

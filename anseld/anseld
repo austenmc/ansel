@@ -1,0 +1,246 @@
+#!/bin/bash
+#
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# We need GNU ls, so set gls here if you need to install it
+LS=gls
+
+# shellcheck source=lib/lock.sh
+source "${DIR}/lib/lock.sh"
+
+# shellcheck source=lib/ansel_sync.sh
+source "${DIR}/lib/ansel_sync.sh"
+
+# Where to sync files.
+directory=~/ansel/tmp
+
+# Volume of sync'd files.
+volume=/dev/disk1s1
+
+# How often to check for messages.
+polling_period=30
+
+# How often to attempt to sync with remote sd cards.
+sync_period=3600
+
+# How oftent to send heartbeat
+heartbeat_period=3600
+
+# Where logs go.
+logfile=/tmp/anseld.log
+
+# Sender ID for FB Messenger.
+psid=$ANSEL_PSID
+
+lockdir_sync=/tmp/anseld/sync
+
+last_sync=""
+last_sync_pretty=""
+
+last_heartbeat=""
+
+log() {
+  d=$(date "+%Y-%m-%d %H:%M:%S")
+  echo "${d}  $1" >> $logfile
+}
+
+msg() {
+  ansel send-message "${psid}" "$1"
+}
+
+unixtime() {
+  awk 'BEGIN{srand();printf srand()}'
+}
+
+last_command=$(unixtime)
+awareness_period=120
+awareness_polling_period=1
+
+c_status() {
+  output=""
+
+  # Last sync...
+  output+=$(printf "Last sync: %s" "${last_sync_pretty}") 
+
+  # Disk usage...
+  free=$(df -h | grep "${volume}" | cut -f4 -d' ')
+  output+=$(printf "\\n\\n%s: %s" "${volume}" "${free}")
+
+  # Dropbox status...
+  if which dropbox > /dev/null
+  then
+    output+=$(printf "\n\nDropbox status: $(dropbox status)") 
+  fi
+
+  log "${output}"
+  msg "${output}"
+}
+
+sync_callback() {
+  retval=$1
+  output="$2"
+
+  if [[ ! ${retval} -eq 0 ]]
+  then
+    log "ansel_sync returned ${retval}"
+  fi
+
+  if [ ! -z "${output}" ]
+  then
+    log "${output}"
+    msg "${output}"
+  fi
+}
+
+# Pass something in $1 to note that we expect
+# a response, even if nothing was synced.
+sync_all() {
+  lock "${lockdir_sync}" sync_callback ansel_sync 10.0.0.153 /DCIM/100__TSB "${directory}"
+
+  if [[ ! -z "$1" ]]
+  then
+    msg "Sync completed"
+  fi
+
+  exit 0
+}
+
+# Pass something in $1 to note that we expect
+# a response, even if nothing was synced.
+c_sync() {
+  last_sync=$(unixtime)
+  last_sync_pretty=$(date)
+
+  if [[ ! -z "$1" ]]
+  then
+    sync_all "$1" &
+  else
+    sync_all &
+  fi
+}
+
+c_list() {
+  output=$(${LS} --time-style="+%Y-%m-%d %H:%M" -t --group-directories-first -l -p "${directory}/$1" | tail -n +2 | tac | awk '{ printf("%s [%s]\n%s %s\n\n", $8, $5, $6, $7); }')
+
+  if [[ -z "${output}" ]]
+  then
+    output="Nothing to list"
+  fi
+
+  log "${output}"
+  msg "${output}"
+}
+
+c_heartbeat() {
+  last_heartbeat=$(unixtime)
+  ansel heartbeat
+}
+
+c_help() {
+  msg "Ansel server component. Try one of these commands:
+list
+status
+sync
+help
+
+Also try !help for bot commands.
+"
+}
+
+dispatch() {
+  while read -r line  
+  do
+    c=$(echo "${line}" | awk '{print $1;}')
+    case $c in
+      list)
+        arg=$(echo "${line}" | awk '{print $2;}')
+        c_list "${arg}" &
+        ;;
+      status)
+        c_status &
+        ;;
+      sync)
+        c_sync mark &
+        ;;
+      help)
+        c_help &
+        ;;
+      *)
+        m=$(printf "Unknown command: %s" "${c}")
+        log "${m}"
+        msg "${m}"
+        ;;
+    esac
+  done <<< "$1"
+}
+
+run_periodically() {
+  period=$1
+  last=$2
+  func=$3
+  arguments=( "${@:4}" )
+
+  if [ -z "${last}" ]
+  then
+    $func "${arguments[@]}"
+  else
+    now=$(unixtime)
+    (( diff="${now}" - "${last}" ))
+    if [ "${diff}" -gt "${period}" ]
+    then
+      $func "${arguments[@]}"
+    fi
+  fi
+}
+
+main() {
+  log "anseld running..."
+
+  while true
+  do
+    # check for messages
+    if ! messages=$(ansel get-messages "${psid}") # this is JSON
+    then
+      m=$(printf "Cannot check messages:\\n%s" "${messages}")
+      log "${m}"
+      msg "${m}"
+
+      messages="{}"
+    fi
+
+    if ! commands=$(echo "${messages}" | ansel messages)
+    then
+      m=$(printf "Cannot parse messages: %s\\n\\n%s" "${messages}" "${commands}")
+      log "${m}"
+      msg "${m}"
+
+      commands=""
+    fi
+
+    if [[ ! -z "${commands}" ]]
+    then
+      last_command=$(unixtime)
+      ansel typing-indicator-on "${psid}"
+
+      log "commands:"
+      log "${commands}"
+
+      dispatch "${commands}"
+      echo "${messages}" | ansel delete-messages "${psid}"
+    fi
+
+    run_periodically "${sync_period}" "${last_sync}" c_sync
+    run_periodically "${heartbeat_period}" "${last_heartbeat}" c_heartbeat
+
+    now=$(unixtime)
+    if (( now < last_command + awareness_period ))
+    then
+      sleep ${awareness_polling_period}
+    else
+      sleep ${polling_period}
+    fi
+  done
+}
+
+main

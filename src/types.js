@@ -10,7 +10,7 @@ export type Directory = {
   type: 'directory',
   name: string,
   path: string,
-  contents: FileListing,
+  contents: Listing,
 };
 
 export type File = {
@@ -22,8 +22,12 @@ export type File = {
   status?: string,
 };
 
-export type FileListing = {
+export type Listing = {
   [string]: File | Directory
+};
+
+export type FileListing = {
+  [string]: File
 };
 
 export type DirectoryListing = {
@@ -34,5 +38,15 @@ export type SyncListing = {
   remote: DirectoryListing,
   local: DirectoryListing,
 };
+
+export type Message = {
+  psid: string,
+  timestamp: number,
+  message: string,
+}
+
+export type Messages = {
+  messages: Array<Message>,
+}
 
 /* eslint-enable no-use-before-define */

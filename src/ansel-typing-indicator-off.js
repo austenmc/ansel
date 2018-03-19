@@ -2,18 +2,16 @@
 /** @flow */
 const _ = require('lodash');
 const program = require('commander');
-const sendMessage = require('./sendMessage');
+const request = require('request');
 
 let psidValue = '';
-let messageValue = '';
 
 program
-  .name('send-message')
-  .description('Send simple message via the Ansel FB Messenger bot.')
-  .arguments('<psid> <message>')
-  .action((psid, message) => {
+  .name('typing-indicator-off')
+  .description('Disable typing indicator via FB Messenger bot')
+  .arguments('<psid>')
+  .action((psid) => {
     psidValue = psid || '';
-    messageValue = message || '';
   })
   .parse(process.argv);
 
@@ -22,12 +20,12 @@ if (psidValue === '') {
   process.exit(1);
 }
 
-if (messageValue === '') {
-  console.error('Error: no message specified');
-  process.exit(1);
-}
+const url = `https://ansel.glitch.me/typing-indicator/${psidValue}`;
 
-sendMessage(psidValue, messageValue, (err, httpResponse, jsonBody) => {
+request({
+  url,
+  method: 'DELETE',
+}, (err, httpResponse, jsonBody) => {
   if (err) {
     console.error('Error: ', err);
     process.exit(1);
