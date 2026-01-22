@@ -46,7 +46,8 @@ let currentTheme = null;
 let currentQuality = null;
 let syncPollInterval = null;
 let analyzePollInterval = null;
-let selectedPhotos = new Set();
+let selectedPhotos = new Set(); // Temporary UI selection (for theme assignment)
+let checkedPhotos = new Set(); // Persistent checked state (for batch downloads)
 let lastClickedIndex = null;
 let themes = [];
 let photoElements = [];
@@ -344,6 +345,7 @@ async function loadYears() {
 async function loadPhotos(year, theme = null, quality = null) {
     photoGrid.innerHTML = '<p class="placeholder">Loading photos...</p>';
     photoElements = [];
+    checkedPhotos.clear(); // Clear checked state when loading new photos
 
     let url = `/api/photos/${year}`;
     const params = new URLSearchParams();
@@ -413,14 +415,31 @@ async function loadPhotos(year, theme = null, quality = null) {
             item.appendChild(badgeContainer);
         }
 
-        // Add click handler for selection
-        item.addEventListener('click', (e) => handlePhotoClick(e, photo.id, index));
+        // Add click handler for selection (but not on checkbox)
+        item.addEventListener('click', (e) => {
+            // Ignore clicks on checkbox
+            if (!e.target.closest('.checkbox')) {
+                handlePhotoClick(e, photo.id, index);
+            }
+        });
 
-        // Add checkmark overlay
-        const checkmark = document.createElement('div');
-        checkmark.className = 'checkmark';
-        checkmark.innerHTML = '&#10003;';
-        item.appendChild(checkmark);
+        // Add checkbox for checked state (persistent)
+        const checkbox = document.createElement('div');
+        checkbox.className = 'checkbox';
+        checkbox.innerHTML = '';
+        checkbox.title = 'Check for batch processing';
+        checkbox.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleCheckboxClick(photo.id, index);
+        });
+        item.appendChild(checkbox);
+
+        // Load checked state
+        if (photo.checked) {
+            item.classList.add('checked');
+            checkedPhotos.add(photo.id);
+            checkbox.innerHTML = '&#10003;';
+        }
 
         photoGrid.appendChild(item);
         photoElements.push({ element: item, photo });
@@ -590,6 +609,49 @@ function handlePhotoClick(event, photoId, index) {
 
     lastClickedIndex = index;
     updateSelectionUI();
+}
+
+/**
+ * Handle checkbox click for checked state (persistent)
+ */
+async function handleCheckboxClick(photoId, index) {
+    const pe = photoElements[index];
+    if (!pe) return;
+
+    const isCurrentlyChecked = checkedPhotos.has(photoId);
+    const newCheckedState = !isCurrentlyChecked;
+
+    // Update UI immediately
+    if (newCheckedState) {
+        checkedPhotos.add(photoId);
+        pe.element.classList.add('checked');
+        pe.element.querySelector('.checkbox').innerHTML = '&#10003;';
+    } else {
+        checkedPhotos.delete(photoId);
+        pe.element.classList.remove('checked');
+        pe.element.querySelector('.checkbox').innerHTML = '';
+    }
+
+    // Persist to backend
+    try {
+        await fetch(`/api/photos/${photoId}/checked`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ checked: newCheckedState })
+        });
+    } catch (err) {
+        console.error('Failed to update checked state:', err);
+        // Revert UI on error
+        if (newCheckedState) {
+            checkedPhotos.delete(photoId);
+            pe.element.classList.remove('checked');
+            pe.element.querySelector('.checkbox').innerHTML = '';
+        } else {
+            checkedPhotos.add(photoId);
+            pe.element.classList.add('checked');
+            pe.element.querySelector('.checkbox').innerHTML = '&#10003;';
+        }
+    }
 }
 
 /**

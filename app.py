@@ -227,6 +227,18 @@ def bulk_set_themes():
     return jsonify({"success": True, "updated": updated})
 
 
+@app.route("/api/photos/<photo_id>/checked", methods=["PUT"])
+def set_photo_checked(photo_id):
+    """Set checked state for a single photo (for batch processing)."""
+    data = request.json or {}
+    checked = data.get("checked", False)
+
+    if photo_service.set_photo_checked(photo_id, checked):
+        return jsonify({"success": True, "checked": checked})
+    else:
+        return jsonify({"error": "Photo not found"}), 404
+
+
 @app.route("/api/photos/<int:year>")
 def get_photos(year):
     """Get all photo metadata for a year, optionally filtered by theme and/or quality."""
