@@ -18,6 +18,7 @@ const manageThemesBtn = document.getElementById('manage-themes-btn');
 const scanBtn = document.getElementById('scan-btn');
 const syncBtn = document.getElementById('sync-btn');
 const analyzeBtn = document.getElementById('analyze-btn');
+const downloadBtn = document.getElementById('download-btn');
 const progressContainer = document.getElementById('progress-container');
 const progressFill = document.getElementById('progress-fill');
 const progressText = document.getElementById('progress-text');
@@ -46,6 +47,7 @@ let currentTheme = null;
 let currentQuality = null;
 let syncPollInterval = null;
 let analyzePollInterval = null;
+let downloadPollInterval = null;
 let selectedPhotos = new Set(); // Temporary UI selection (for theme assignment)
 let checkedPhotos = new Set(); // Persistent checked state (for batch downloads)
 let lastClickedIndex = null;
@@ -135,6 +137,7 @@ function setupEventListeners() {
         currentYear = yearSelect.value;
         syncBtn.disabled = !currentYear;
         analyzeBtn.disabled = !currentYear;
+        downloadBtn.disabled = !currentYear;
         clearSelection();
 
         if (currentYear) {
@@ -177,6 +180,23 @@ function setupEventListeners() {
         } catch (err) {
             alert(`Analysis failed: ${err.message}`);
             analyzeBtn.disabled = false;
+            progressContainer.classList.add('hidden');
+        }
+    });
+
+    // Download button
+    downloadBtn.addEventListener('click', async () => {
+        if (!currentYear) return;
+
+        downloadBtn.disabled = true;
+        progressContainer.classList.remove('hidden');
+
+        try {
+            await fetch(`/api/download/${currentYear}`, { method: 'POST' });
+            startDownloadPolling();
+        } catch (err) {
+            alert(`Download failed: ${err.message}`);
+            downloadBtn.disabled = false;
             progressContainer.classList.add('hidden');
         }
     });
@@ -515,6 +535,41 @@ function startAnalyzePollling() {
                 progressContainer.classList.add('hidden');
                 progressFill.style.width = '0%';
             }, 3000);
+        }
+    }, 500);
+}
+
+/**
+ * Start polling for download progress
+ */
+function startDownloadPolling() {
+    if (downloadPollInterval) {
+        clearInterval(downloadPollInterval);
+    }
+
+    downloadPollInterval = setInterval(async () => {
+        const status = await fetch(`/api/download/status`).then(r => r.json());
+
+        progressFill.style.width = `${status.percent}%`;
+        progressText.textContent = `Downloading: ${status.completed}/${status.total} (${status.percent}%) - ${status.current_file}`;
+
+        if (!status.is_running) {
+            clearInterval(downloadPollInterval);
+            downloadPollInterval = null;
+            downloadBtn.disabled = false;
+
+            // Show completion message
+            if (status.error) {
+                progressText.textContent = `Download failed: ${status.error}`;
+            } else {
+                progressText.textContent = `Download complete: ${status.total} photos saved to ${status.download_path}`;
+            }
+
+            // Hide progress after a delay
+            setTimeout(() => {
+                progressContainer.classList.add('hidden');
+                progressFill.style.width = '0%';
+            }, 5000);
         }
     }, 500);
 }

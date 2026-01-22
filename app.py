@@ -490,6 +490,125 @@ def theme_classifier_status():
     })
 
 
+# --- Download API ---
+
+
+# Track download progress
+class DownloadProgress:
+    """Track download progress."""
+
+    def __init__(self):
+        self.total = 0
+        self.completed = 0
+        self.current_file = ""
+        self.is_running = False
+        self.error = None
+        self.download_path = ""
+
+    def to_dict(self):
+        return {
+            "total": self.total,
+            "completed": self.completed,
+            "current_file": self.current_file,
+            "is_running": self.is_running,
+            "error": self.error,
+            "download_path": self.download_path,
+            "percent": int((self.completed / self.total * 100) if self.total > 0 else 0),
+        }
+
+
+download_progress = DownloadProgress()
+
+
+@app.route("/api/download/status")
+def download_status():
+    """Get download progress."""
+    return jsonify(download_progress.to_dict())
+
+
+@app.route("/api/download/<int:year>", methods=["POST"])
+def download_checked_photos(year):
+    """Download all checked photos for a year, organized by theme."""
+    global download_progress
+
+    if download_progress.is_running:
+        return jsonify({"error": "Download already in progress"}), 409
+
+    if not dropbox_client.is_authenticated():
+        return jsonify({"error": "Not authenticated"}), 401
+
+    def run_download():
+        global download_progress
+        import os
+        from pathlib import Path
+
+        # Get all checked photos for this year
+        photos = photo_service.get_photos_for_year(year)
+        checked_photos = [p for p in photos if p.get("checked", False)]
+
+        download_progress.total = 0
+        download_progress.completed = 0
+        download_progress.is_running = True
+        download_progress.error = None
+
+        # Count total downloads (photos can be in multiple themes)
+        for photo in checked_photos:
+            themes = photo.get("themes", [])
+            if themes:
+                download_progress.total += len(themes)
+            else:
+                download_progress.total += 1
+
+        try:
+            # Base download directory
+            base_dir = Path("/download")
+            download_progress.download_path = str(base_dir / str(year))
+
+            # Download each photo
+            for photo in checked_photos:
+                themes = photo.get("themes", [])
+                if not themes:
+                    themes = ["unthemed"]
+
+                for theme in themes:
+                    download_progress.current_file = f"{theme}/{photo['name']}"
+
+                    try:
+                        # Create directory structure: /download/[year]/[theme]/
+                        theme_dir = base_dir / str(year) / theme
+                        theme_dir.mkdir(parents=True, exist_ok=True)
+
+                        # Download file from Dropbox
+                        file_path = theme_dir / photo["name"]
+
+                        # Skip if already exists
+                        if not file_path.exists():
+                            file_bytes = dropbox_client.download_file(photo["path"])
+                            with open(file_path, "wb") as f:
+                                f.write(file_bytes)
+
+                    except Exception as e:
+                        print(f"Error downloading {photo['name']} to {theme}: {e}")
+
+                    download_progress.completed += 1
+
+        except Exception as e:
+            download_progress.error = str(e)
+            print(f"Download error: {e}")
+        finally:
+            download_progress.is_running = False
+            download_progress.current_file = ""
+
+    thread = threading.Thread(target=run_download)
+    thread.daemon = True
+    thread.start()
+
+    return jsonify({
+        "success": True,
+        "message": f"Started downloading checked photos for year {year}",
+    })
+
+
 if __name__ == "__main__":
     print(f"Starting Ansel Photo Album at http://{config.FLASK_HOST}:{config.FLASK_PORT}")
     print(f"Cache directory: {config.ANSEL_DIR}")
