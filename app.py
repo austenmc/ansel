@@ -372,6 +372,10 @@ def analyze_year_quality(year):
                         quality_data = scorer.analyze_photo(image_bytes, photo["id"])
                         photo_service.update_photo_quality(photo["id"], quality_data)
 
+                        # Auto-check good photos for batch processing
+                        if quality_data.get("is_good_photo"):
+                            photo_service.set_photo_checked(photo["id"], True)
+
                 except Exception as e:
                     print(f"Error analyzing {photo['name']}: {e}")
 
