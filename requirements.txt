@@ -1,0 +1,14 @@
+flask>=3.0.0
+dropbox>=12.0.0
+pillow>=10.0.0
+pillow-heif>=0.15.0
+
+# Quality analysis (required)
+opencv-python>=4.8.0
+numpy>=1.24.0
+
+# Quality analysis (optional)
+tqdm>=4.65.0  # Progress bars for CLI script
+
+# Face analysis (optional - not available on all platforms)
+# mediapipe>=0.10.0  # Uncomment if available on your platform

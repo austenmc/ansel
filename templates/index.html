@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ansel Photo Album</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header>
+            <h1>Ansel Photo Album</h1>
+            <div id="account-info"></div>
+        </header>
+
+        <!-- Setup Section (shown when not configured) -->
+        <section id="setup-section" class="hidden">
+            <div class="card">
+                <h2>Setup Dropbox Connection</h2>
+                <p>To use Ansel, you need to connect your Dropbox account.</p>
+
+                <div id="credentials-form">
+                    <h3>Step 1: Enter Dropbox App Credentials</h3>
+                    <p>Create a Dropbox app at <a href="https://www.dropbox.com/developers/apps" target="_blank">dropbox.com/developers/apps</a></p>
+                    <ul>
+                        <li>Choose "Scoped access"</li>
+                        <li>Choose "Full Dropbox" access</li>
+                        <li>Add <code>http://localhost:5001/oauth/callback</code> as redirect URI</li>
+                    </ul>
+
+                    <form id="dropbox-credentials-form">
+                        <div class="form-group">
+                            <label for="app-key">App Key:</label>
+                            <input type="text" id="app-key" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="app-secret">App Secret:</label>
+                            <input type="password" id="app-secret" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Credentials</button>
+                    </form>
+                </div>
+
+                <div id="auth-section" class="hidden">
+                    <h3>Step 2: Authorize with Dropbox</h3>
+                    <a href="/oauth/start" class="btn btn-primary">Connect Dropbox</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Content (shown when authenticated) -->
+        <section id="main-section" class="hidden">
+            <!-- Controls -->
+            <div class="controls">
+                <div class="control-group">
+                    <label for="year-select">Year:</label>
+                    <select id="year-select">
+                        <option value="">Select a year...</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="theme-select">Theme:</label>
+                    <select id="theme-select">
+                        <option value="">All Photos</option>
+                    </select>
+                    <button id="manage-themes-btn" class="btn btn-small">Manage</button>
+                </div>
+
+                <div class="control-group">
+                    <label for="quality-select">Quality:</label>
+                    <select id="quality-select">
+                        <option value="">All Photos</option>
+                        <option value="good">Good Photos</option>
+                        <option value="burst_best">Best of Bursts</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <button id="scan-btn" class="btn">Scan Dropbox</button>
+                    <button id="sync-btn" class="btn btn-primary" disabled>Sync Year</button>
+                    <button id="analyze-btn" class="btn" disabled>Analyze Quality</button>
+                </div>
+            </div>
+
+            <!-- Theme Assignment Panel (shown when photos selected) -->
+            <div id="theme-panel" class="theme-panel hidden">
+                <div class="theme-panel-header">
+                    <span id="selection-count">0 photos selected</span>
+                    <button id="clear-selection-btn" class="btn btn-small">Clear</button>
+                </div>
+                <div class="theme-panel-info">
+                    Click themes to assign (1-9 for quick assign, U for unthemed, Esc to clear selection)
+                </div>
+                <div id="theme-chips" class="theme-chips">
+                    <!-- Theme chips populated by JS -->
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div id="progress-container" class="hidden">
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill"></div>
+                </div>
+                <div id="progress-text">0%</div>
+            </div>
+
+            <!-- Photo Grid -->
+            <div id="photo-grid" class="photo-grid">
+                <p class="placeholder">Select a year to view photos</p>
+            </div>
+        </section>
+
+        <!-- Folder Selection Modal -->
+        <div id="folder-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2>Select Folders to Scan</h2>
+                <p>Choose which Dropbox folders contain your photos:</p>
+                <div id="folder-list" class="folder-list">
+                    <p>Loading folders...</p>
+                </div>
+                <div class="modal-actions">
+                    <button id="cancel-scan-btn" class="btn">Cancel</button>
+                    <button id="start-scan-btn" class="btn btn-primary">Scan Selected</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Theme Management Modal -->
+        <div id="theme-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2>Manage Themes</h2>
+                <p>Add or remove custom themes:</p>
+                <div id="theme-list" class="theme-list">
+                    <!-- Theme list populated by JS -->
+                </div>
+                <div class="add-theme-form">
+                    <input type="text" id="new-theme-input" placeholder="New theme name...">
+                    <button id="add-theme-btn" class="btn btn-primary">Add</button>
+                </div>
+                <div class="modal-actions">
+                    <button id="close-theme-modal-btn" class="btn">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
