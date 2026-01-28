@@ -692,6 +692,29 @@ async function handleCheckboxClick(photoId, index) {
 }
 
 /**
+ * Select a single photo by index, clearing any existing selection
+ */
+function selectSinglePhoto(index) {
+    if (index < 0 || index >= photoElements.length) return;
+
+    // Clear existing selection
+    selectedPhotos.clear();
+    document.querySelectorAll('.photo-item.selected').forEach(el => {
+        el.classList.remove('selected');
+    });
+
+    const pe = photoElements[index];
+    selectedPhotos.add(pe.photo.id);
+    pe.element.classList.add('selected');
+    lastClickedIndex = index;
+
+    // Scroll into view if needed
+    pe.element.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+    updateSelectionUI();
+}
+
+/**
  * Clear photo selection
  */
 function clearSelection() {
@@ -722,8 +745,11 @@ function updateSelectionUI() {
 /**
  * Assign theme to selected photos
  */
-async function assignThemeToSelected(themeName) {
+async function assignThemeToSelected(themeName, advanceToNext = false) {
     if (selectedPhotos.size === 0) return;
+
+    // Remember the index to advance to before clearing
+    const nextIndex = advanceToNext ? (lastClickedIndex !== null ? lastClickedIndex + 1 : 0) : -1;
 
     const photoIds = Array.from(selectedPhotos);
 
@@ -740,14 +766,22 @@ async function assignThemeToSelected(themeName) {
     // Refresh photos and themes
     await loadPhotos(currentYear, currentTheme, currentQuality);
     await loadThemes();
-    clearSelection();
+
+    // Advance to next photo or clear selection
+    if (advanceToNext && nextIndex >= 0 && nextIndex < photoElements.length) {
+        selectSinglePhoto(nextIndex);
+    } else {
+        clearSelection();
+    }
 }
 
 /**
  * Clear themes from selected photos (mark as unthemed)
  */
-async function clearThemesFromSelected() {
+async function clearThemesFromSelected(advanceToNext = false) {
     if (selectedPhotos.size === 0) return;
+
+    const nextIndex = advanceToNext ? (lastClickedIndex !== null ? lastClickedIndex + 1 : 0) : -1;
 
     const photoIds = Array.from(selectedPhotos);
 
@@ -764,7 +798,12 @@ async function clearThemesFromSelected() {
     // Refresh photos and themes
     await loadPhotos(currentYear, currentTheme, currentQuality);
     await loadThemes();
-    clearSelection();
+
+    if (advanceToNext && nextIndex >= 0 && nextIndex < photoElements.length) {
+        selectSinglePhoto(nextIndex);
+    } else {
+        clearSelection();
+    }
 }
 
 /**
@@ -870,21 +909,53 @@ function setupKeyboardShortcuts() {
             return;
         }
 
-        // Only process shortcuts if photos are selected
-        if (selectedPhotos.size === 0) return;
-
-        // U - clear themes (unthemed)
-        if (e.key === 'u' || e.key === 'U') {
+        // Arrow keys - navigate between photos
+        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
             e.preventDefault();
-            clearThemesFromSelected();
+            if (photoElements.length === 0) return;
+
+            let nextIndex;
+            if (lastClickedIndex === null) {
+                nextIndex = e.key === 'ArrowRight' ? 0 : photoElements.length - 1;
+            } else {
+                nextIndex = e.key === 'ArrowRight' ? lastClickedIndex + 1 : lastClickedIndex - 1;
+            }
+
+            if (nextIndex >= 0 && nextIndex < photoElements.length) {
+                selectSinglePhoto(nextIndex);
+            }
             return;
         }
 
-        // 1-9 - assign theme by number
+        // Spacebar - toggle checked state on selected photos
+        if (e.key === ' ') {
+            e.preventDefault();
+            if (selectedPhotos.size === 0) return;
+
+            for (let i = 0; i < photoElements.length; i++) {
+                const pe = photoElements[i];
+                if (selectedPhotos.has(pe.photo.id)) {
+                    handleCheckboxClick(pe.photo.id, i);
+                }
+            }
+            return;
+        }
+
+        // Only process theme shortcuts if photos are selected
+        if (selectedPhotos.size === 0) return;
+
+        // U - clear themes (unthemed) and advance
+        if (e.key === 'u' || e.key === 'U') {
+            e.preventDefault();
+            clearThemesFromSelected(true);
+            return;
+        }
+
+        // 1-9 - assign theme by number and advance to next photo
         const num = parseInt(e.key);
         if (num >= 1 && num <= 9 && num <= themes.length) {
             e.preventDefault();
-            assignThemeToSelected(themes[num - 1].name);
+            assignThemeToSelected(themes[num - 1].name, true);
         }
     });
 }
