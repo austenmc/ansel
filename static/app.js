@@ -977,18 +977,11 @@ function setupKeyboardShortcuts() {
             e.preventDefault();
             if (selectedPhotos.size === 0) return;
 
-            // Open the last selected photo
             const photoId = lastClickedIndex !== null
                 ? photoElements[lastClickedIndex].photo.id
                 : Array.from(selectedPhotos)[0];
 
-            fetch(`/api/photo/${photoId}/full`)
-                .then(r => r.json())
-                .then(data => {
-                    if (data.url) {
-                        window.open(data.url, '_blank');
-                    }
-                });
+            window.open(`/api/photo/${photoId}/full`, '_blank');
             return;
         }
 

@@ -260,8 +260,8 @@ def get_thumbnail(photo_id):
 
 
 @app.route("/api/photo/<photo_id>/full")
-def get_full_photo_link(photo_id):
-    """Get a temporary direct link to the full-size photo on Dropbox."""
+def get_full_photo(photo_id):
+    """Serve the full-size photo from Dropbox inline in the browser."""
     if not dropbox_client.is_authenticated():
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -270,8 +270,12 @@ def get_full_photo_link(photo_id):
         return jsonify({"error": "Photo not found"}), 404
 
     try:
-        link = dropbox_client.get_temporary_link(photo["path"])
-        return jsonify({"url": link})
+        import io
+        _, file_bytes = dropbox_client.download_file(photo["path"])
+        ext = photo["name"].rsplit(".", 1)[-1].lower() if "." in photo["name"] else "jpeg"
+        mime = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+                "heic": "image/heic", "gif": "image/gif", "webp": "image/webp"}.get(ext, "image/jpeg")
+        return send_file(io.BytesIO(file_bytes), mimetype=mime, download_name=photo["name"])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
