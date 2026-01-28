@@ -10,6 +10,7 @@ import photo_service
 import thumbnail_service
 import quality_analyzer
 from quality_analyzer import BurstDetector, ReferencePhotoLearner
+from theme_classifier import get_theme_classifier
 
 app = Flask(__name__)
 app.secret_key = "ansel-photo-album-secret-key-change-in-production"
@@ -412,6 +413,65 @@ def calibrate_quality():
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# --- Theme Classification API ---
+
+
+@app.route("/api/themes/classify/<int:year>", methods=["POST"])
+def classify_year_themes(year):
+    """Run theme classification on all thumbnails for a year."""
+    classifier = get_theme_classifier()
+
+    if not classifier.is_available:
+        return jsonify({
+            "error": "Theme classifier not available. Train it first or install dependencies."
+        }), 400
+
+    def run_classification():
+        photos = photo_service.get_photos_for_year(year)
+        photos_with_thumbnails = [p for p in photos if p.get("has_thumbnail")]
+        classified = 0
+
+        for photo in photos_with_thumbnails:
+            try:
+                thumbnail_path = config.THUMBNAILS_DIR / f"{photo['id']}.jpg"
+                if not thumbnail_path.exists():
+                    continue
+
+                with open(thumbnail_path, "rb") as f:
+                    image_bytes = f.read()
+
+                result = classifier.predict(image_bytes)
+                if result.get("predicted_themes"):
+                    photo_service.add_predicted_themes(photo["id"], result["predicted_themes"])
+                    classified += 1
+
+            except Exception as e:
+                print(f"Error classifying {photo.get('name', photo['id'])}: {e}")
+
+        print(f"Theme classification complete for {year}: {classified}/{len(photos_with_thumbnails)} classified")
+
+    thread = threading.Thread(target=run_classification)
+    thread.daemon = True
+    thread.start()
+
+    return jsonify({
+        "success": True,
+        "message": f"Started theme classification for year {year}",
+    })
+
+
+@app.route("/api/themes/classifier/status")
+def theme_classifier_status():
+    """Get theme classifier status and metadata."""
+    classifier = get_theme_classifier()
+    metadata = classifier.get_metadata() if classifier.is_available else None
+
+    return jsonify({
+        "available": classifier.is_available,
+        "metadata": metadata,
+    })
 
 
 if __name__ == "__main__":

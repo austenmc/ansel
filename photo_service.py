@@ -7,7 +7,17 @@ from PIL import Image
 from PIL.ExifTags import TAGS
 
 import config
-from dropbox_client import dropbox_client
+
+# Lazy import to avoid requiring dropbox for offline operations (training, etc.)
+dropbox_client = None
+
+def _get_dropbox_client():
+    """Lazy-load dropbox client."""
+    global dropbox_client
+    if dropbox_client is None:
+        from dropbox_client import dropbox_client as _client
+        dropbox_client = _client
+    return dropbox_client
 
 
 def extract_exif_date(image_bytes):
@@ -97,7 +107,7 @@ def scan_photos(progress_callback=None, path="", merge=True):
 
     print(f"Starting scan of Dropbox path: '{path or '/'}'")
 
-    for entry in dropbox_client.list_folder_recursive(path):
+    for entry in _get_dropbox_client().list_folder_recursive(path):
         files_seen += 1
         if files_seen % 500 == 0:
             print(f"  Checked {files_seen} files, found {scanned} photos...")
@@ -284,6 +294,27 @@ def mark_photo_synced(photo_id):
     config.save_photo_index(index)
 
 
+def update_photo_date_taken(photo_id, date_taken):
+    """
+    Update the date_taken for a photo.
+
+    Args:
+        photo_id: Photo content hash
+        date_taken: datetime object
+
+    Returns:
+        True if successful, False otherwise
+    """
+    index = config.load_photo_index()
+
+    if photo_id not in index.get("photos", {}):
+        return False
+
+    index["photos"][photo_id]["date_taken"] = date_taken.isoformat()
+    config.save_photo_index(index)
+    return True
+
+
 def set_photo_themes(photo_id, themes):
     """
     Set themes for a single photo.
@@ -362,6 +393,41 @@ def get_theme_counts():
 
     counts["unthemed"] = unthemed
     return counts
+
+
+def add_predicted_themes(photo_id, themes):
+    """
+    Add predicted themes to a photo (additive, preserves manual themes).
+
+    Also stores theme_predictions metadata on the photo for auditability.
+
+    Args:
+        photo_id: Photo content hash
+        themes: List of predicted theme names
+
+    Returns:
+        True if successful, False otherwise
+    """
+    index = config.load_photo_index()
+
+    if photo_id not in index.get("photos", {}):
+        return False
+
+    photo = index["photos"][photo_id]
+
+    # Add themes (additive - don't remove existing)
+    existing_themes = set(photo.get("themes", []))
+    existing_themes.update(themes)
+    photo["themes"] = list(existing_themes)
+
+    # Store prediction metadata for auditability
+    photo["theme_predictions"] = {
+        "predicted_themes": themes,
+        "predicted_at": __import__("datetime").datetime.now().isoformat(),
+    }
+
+    config.save_photo_index(index)
+    return True
 
 
 def update_photo_quality(photo_id, quality_data):

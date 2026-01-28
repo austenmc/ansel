@@ -17,6 +17,7 @@ from dropbox_client import dropbox_client
 import photo_service
 import quality_analyzer
 from quality_analyzer import BurstDetector
+from theme_classifier import classify_photo
 
 
 def get_thumbnail_path(photo_id):
@@ -179,8 +180,10 @@ def sync_year(year):
 
                 # Extract EXIF date and update year if needed
                 exif_date = photo_service.extract_exif_date(image_bytes)
-                if exif_date and exif_date.year != photo.get("year"):
-                    photo_service.update_photo_year(photo["id"], exif_date.year)
+                if exif_date:
+                    photo_service.update_photo_date_taken(photo["id"], exif_date)
+                    if exif_date.year != photo.get("year"):
+                        photo_service.update_photo_year(photo["id"], exif_date.year)
 
                 # Generate thumbnail
                 generate_thumbnail(image_bytes, photo["id"])
@@ -188,6 +191,11 @@ def sync_year(year):
                 # Analyze photo quality
                 quality_data = quality_analyzer.analyze_photo(image_bytes, photo["id"])
                 photo_service.update_photo_quality(photo["id"], quality_data)
+
+                # Classify theme (with date for temporal features)
+                theme_result = classify_photo(image_bytes, photo["id"], date_taken=exif_date)
+                if theme_result.get("predicted_themes"):
+                    photo_service.add_predicted_themes(photo["id"], theme_result["predicted_themes"])
 
                 # Mark as synced
                 photo_service.mark_photo_synced(photo["id"])

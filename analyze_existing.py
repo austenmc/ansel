@@ -18,6 +18,7 @@ Usage:
 
 import argparse
 import sys
+from datetime import datetime
 from pathlib import Path
 
 # Add parent directory to path for imports
@@ -27,6 +28,7 @@ import config
 import photo_service
 import quality_analyzer
 from quality_analyzer import BurstDetector
+from theme_classifier import get_theme_classifier
 
 # Try to import tqdm for progress bar, fall back to simple output
 try:
@@ -37,7 +39,7 @@ except ImportError:
     print("Note: Install tqdm for progress bars (pip install tqdm)")
 
 
-def analyze_year(year, force=False, verbose=False):
+def analyze_year(year, force=False, verbose=False, classify_themes=False):
     """
     Analyze all photos for a specific year.
 
@@ -45,6 +47,7 @@ def analyze_year(year, force=False, verbose=False):
         year: Year to analyze
         force: If True, re-analyze even if already scored
         verbose: If True, print detailed output
+        classify_themes: If True, also run theme classification
 
     Returns:
         Dictionary with analysis statistics
@@ -98,6 +101,18 @@ def analyze_year(year, force=False, verbose=False):
 
             # Save to index
             photo_service.update_photo_quality(photo["id"], quality_data)
+
+            # Classify theme if requested
+            if classify_themes:
+                classifier = get_theme_classifier()
+                if classifier.is_available:
+                    # Lookup date_taken from photo data for temporal features
+                    date_str = photo.get("date_taken")
+                    date_taken = datetime.fromisoformat(date_str) if date_str else None
+
+                    theme_result = classifier.predict(image_bytes, date_taken=date_taken)
+                    if theme_result.get("predicted_themes"):
+                        photo_service.add_predicted_themes(photo["id"], theme_result["predicted_themes"])
 
             analyzed += 1
 
@@ -208,6 +223,11 @@ def main():
         action="store_true",
         help="Only print statistics, don't analyze"
     )
+    parser.add_argument(
+        "--classify-themes",
+        action="store_true",
+        help="Also run theme classification on thumbnails"
+    )
 
     args = parser.parse_args()
 
@@ -232,6 +252,15 @@ def main():
             print_quality_distribution(year)
         return
 
+    # Check theme classifier availability
+    if args.classify_themes:
+        classifier = get_theme_classifier()
+        if not classifier.is_available:
+            print("Warning: Theme classifier not available.")
+            print("  Train it first: python train_themes.py <training_dirs>")
+            print("  Or install deps: pip install torch torchvision scikit-learn")
+            print()
+
     # Analyze each year
     total_analyzed = 0
     total_skipped = 0
@@ -242,7 +271,7 @@ def main():
         print(f"\nYear {year}:")
 
         # Analyze quality
-        stats = analyze_year(year, force=args.force, verbose=args.verbose)
+        stats = analyze_year(year, force=args.force, verbose=args.verbose, classify_themes=args.classify_themes)
         total_analyzed += stats["analyzed"]
         total_skipped += stats["skipped"]
         total_errors += stats["errors"]

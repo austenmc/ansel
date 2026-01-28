@@ -10,5 +10,13 @@ numpy>=1.24.0
 # Quality analysis (optional)
 tqdm>=4.65.0  # Progress bars for CLI script
 
+# Theme classification (optional - classifier disabled if not installed)
+# torch>=2.0.0
+# torchvision>=0.15.0
+# scikit-learn>=1.3.0
+
 # Face analysis (optional - not available on all platforms)
 # mediapipe>=0.10.0  # Uncomment if available on your platform
+
+# Face embeddings (optional - disabled if not installed)
+# facenet-pytorch>=2.5.0
