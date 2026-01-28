@@ -972,6 +972,26 @@ function setupKeyboardShortcuts() {
             return;
         }
 
+        // F - open full-size photo in new tab
+        if (e.key === 'f' || e.key === 'F') {
+            e.preventDefault();
+            if (selectedPhotos.size === 0) return;
+
+            // Open the last selected photo
+            const photoId = lastClickedIndex !== null
+                ? photoElements[lastClickedIndex].photo.id
+                : Array.from(selectedPhotos)[0];
+
+            fetch(`/api/photo/${photoId}/full`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.url) {
+                        window.open(data.url, '_blank');
+                    }
+                });
+            return;
+        }
+
         // Only process theme shortcuts if photos are selected
         if (selectedPhotos.size === 0) return;
 

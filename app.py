@@ -259,6 +259,23 @@ def get_thumbnail(photo_id):
     return jsonify({"error": "Thumbnail not found"}), 404
 
 
+@app.route("/api/photo/<photo_id>/full")
+def get_full_photo_link(photo_id):
+    """Get a temporary direct link to the full-size photo on Dropbox."""
+    if not dropbox_client.is_authenticated():
+        return jsonify({"error": "Not authenticated"}), 401
+
+    photo = photo_service.get_photo_by_id(photo_id)
+    if not photo:
+        return jsonify({"error": "Photo not found"}), 404
+
+    try:
+        link = dropbox_client.get_temporary_link(photo["path"])
+        return jsonify({"url": link})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/sync/<int:year>", methods=["POST"])
 def start_sync(year):
     """Start bulk sync for a year."""

@@ -152,6 +152,23 @@ class DropboxClient:
         metadata, response = dbx.files_download(path)
         return metadata, response.content
 
+    def get_temporary_link(self, path):
+        """
+        Get a temporary direct link to a Dropbox file (valid ~4 hours).
+
+        Args:
+            path: Dropbox path to the file
+
+        Returns:
+            Temporary URL string
+        """
+        dbx = self.get_client()
+        if not dbx:
+            raise RuntimeError("Not authenticated with Dropbox")
+
+        result = dbx.files_get_temporary_link(path)
+        return result.link
+
     def list_folders(self, path=""):
         """List folders at a given path."""
         dbx = self.get_client()
