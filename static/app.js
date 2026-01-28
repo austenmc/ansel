@@ -743,17 +743,55 @@ function updateSelectionUI() {
 }
 
 /**
+ * Update theme badges on a photo element in place
+ */
+function updatePhotoThemeBadges(pe, newThemes) {
+    // Update in-memory data
+    pe.photo.themes = newThemes;
+
+    // Remove existing badge container
+    const existing = pe.element.querySelector('.theme-badges');
+    if (existing) existing.remove();
+
+    // Add new badges if any
+    if (newThemes.length > 0) {
+        const badgeContainer = document.createElement('div');
+        badgeContainer.className = 'theme-badges';
+        newThemes.forEach(t => {
+            const badge = document.createElement('span');
+            badge.className = 'theme-badge';
+            badge.textContent = t;
+            badgeContainer.appendChild(badge);
+        });
+        pe.element.appendChild(badgeContainer);
+    }
+}
+
+/**
  * Assign theme to selected photos
  */
 async function assignThemeToSelected(themeName, advanceToNext = false) {
     if (selectedPhotos.size === 0) return;
 
-    // Remember the index to advance to before clearing
     const nextIndex = advanceToNext ? (lastClickedIndex !== null ? lastClickedIndex + 1 : 0) : -1;
-
     const photoIds = Array.from(selectedPhotos);
 
-    await fetch('/api/photos/bulk/themes', {
+    // Update DOM immediately
+    for (const pe of photoElements) {
+        if (selectedPhotos.has(pe.photo.id)) {
+            updatePhotoThemeBadges(pe, [themeName]);
+        }
+    }
+
+    // Advance or clear selection immediately
+    if (advanceToNext && nextIndex >= 0 && nextIndex < photoElements.length) {
+        selectSinglePhoto(nextIndex);
+    } else {
+        clearSelection();
+    }
+
+    // Persist to backend in background
+    fetch('/api/photos/bulk/themes', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -761,18 +799,7 @@ async function assignThemeToSelected(themeName, advanceToNext = false) {
             themes: [themeName],
             mode: 'set'
         })
-    });
-
-    // Refresh photos and themes
-    await loadPhotos(currentYear, currentTheme, currentQuality);
-    await loadThemes();
-
-    // Advance to next photo or clear selection
-    if (advanceToNext && nextIndex >= 0 && nextIndex < photoElements.length) {
-        selectSinglePhoto(nextIndex);
-    } else {
-        clearSelection();
-    }
+    }).then(() => loadThemes());
 }
 
 /**
@@ -782,10 +809,24 @@ async function clearThemesFromSelected(advanceToNext = false) {
     if (selectedPhotos.size === 0) return;
 
     const nextIndex = advanceToNext ? (lastClickedIndex !== null ? lastClickedIndex + 1 : 0) : -1;
-
     const photoIds = Array.from(selectedPhotos);
 
-    await fetch('/api/photos/bulk/themes', {
+    // Update DOM immediately
+    for (const pe of photoElements) {
+        if (selectedPhotos.has(pe.photo.id)) {
+            updatePhotoThemeBadges(pe, []);
+        }
+    }
+
+    // Advance or clear selection immediately
+    if (advanceToNext && nextIndex >= 0 && nextIndex < photoElements.length) {
+        selectSinglePhoto(nextIndex);
+    } else {
+        clearSelection();
+    }
+
+    // Persist to backend in background
+    fetch('/api/photos/bulk/themes', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -793,17 +834,7 @@ async function clearThemesFromSelected(advanceToNext = false) {
             themes: [],
             mode: 'set'
         })
-    });
-
-    // Refresh photos and themes
-    await loadPhotos(currentYear, currentTheme, currentQuality);
-    await loadThemes();
-
-    if (advanceToNext && nextIndex >= 0 && nextIndex < photoElements.length) {
-        selectSinglePhoto(nextIndex);
-    } else {
-        clearSelection();
-    }
+    }).then(() => loadThemes());
 }
 
 /**
