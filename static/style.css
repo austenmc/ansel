@@ -315,47 +315,16 @@ header h1 {
     transform: scale(1.1);
 }
 
-/* Quality star badge */
-.quality-star {
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    width: 24px;
-    height: 24px;
-    background: linear-gradient(135deg, #ffd700 0%, #ffaa00 100%);
-    border-radius: 50%;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    z-index: 5;
-}
-
-.photo-item.good-photo {
-    box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.5);
-}
-
-/* Burst duplicate styling */
-.photo-item.burst-duplicate {
-    opacity: 0.6;
-}
-
-.photo-item.burst-duplicate:hover {
-    opacity: 1;
-}
-
 /* Theme badges on photos */
 .theme-badges {
     position: absolute;
-    bottom: 8px;
+    top: 8px;
     left: 8px;
-    right: 8px;
+    right: 40px;
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
+    z-index: 5;
 }
 
 .theme-badge {

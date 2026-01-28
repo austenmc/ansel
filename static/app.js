@@ -392,15 +392,6 @@ async function loadPhotos(year, theme = null, quality = null) {
         item.dataset.photoId = photo.id;
         item.dataset.index = index;
 
-        // Add quality-based classes
-        const photoQuality = photo.quality || {};
-        if (photoQuality.is_good_photo) {
-            item.classList.add('good-photo');
-        }
-        if (photoQuality.burst_group_id && !photoQuality.is_burst_best) {
-            item.classList.add('burst-duplicate');
-        }
-
         if (photo.has_thumbnail) {
             const img = document.createElement('img');
             img.src = `/api/thumbnail/${photo.id}`;
@@ -410,15 +401,6 @@ async function loadPhotos(year, theme = null, quality = null) {
         } else {
             item.classList.add('loading');
             item.title = photo.name;
-        }
-
-        // Add quality star badge for good photos
-        if (photoQuality.is_good_photo) {
-            const starBadge = document.createElement('div');
-            starBadge.className = 'quality-star';
-            starBadge.innerHTML = '&#9733;';
-            starBadge.title = `Quality: ${photoQuality.overall_score?.toFixed(1) || 'N/A'}`;
-            item.appendChild(starBadge);
         }
 
         // Add theme badges
