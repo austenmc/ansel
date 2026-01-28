@@ -436,10 +436,8 @@ def add_predicted_themes(photo_id, themes):
 
     photo = index["photos"][photo_id]
 
-    # Add themes (additive - don't remove existing)
-    existing_themes = set(photo.get("themes", []))
-    existing_themes.update(themes)
-    photo["themes"] = list(existing_themes)
+    # Set themes (replace existing)
+    photo["themes"] = list(themes)
 
     # Store prediction metadata for auditability
     photo["theme_predictions"] = {

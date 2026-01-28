@@ -733,7 +733,7 @@ async function assignThemeToSelected(themeName) {
         body: JSON.stringify({
             photo_ids: photoIds,
             themes: [themeName],
-            mode: 'add'
+            mode: 'set'
         })
     });
 
