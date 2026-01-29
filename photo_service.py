@@ -336,6 +336,27 @@ def set_photo_themes(photo_id, themes):
     return True
 
 
+def set_photo_checked(photo_id, checked):
+    """
+    Set checked state for a single photo (for batch processing like downloads).
+
+    Args:
+        photo_id: Photo content hash
+        checked: Boolean indicating if photo is checked
+
+    Returns:
+        True if successful, False otherwise
+    """
+    index = config.load_photo_index()
+
+    if photo_id not in index.get("photos", {}):
+        return False
+
+    index["photos"][photo_id]["checked"] = checked
+    config.save_photo_index(index)
+    return True
+
+
 def bulk_set_themes(photo_ids, themes, mode="set"):
     """
     Set themes for multiple photos in a single operation.
@@ -415,10 +436,8 @@ def add_predicted_themes(photo_id, themes):
 
     photo = index["photos"][photo_id]
 
-    # Add themes (additive - don't remove existing)
-    existing_themes = set(photo.get("themes", []))
-    existing_themes.update(themes)
-    photo["themes"] = list(existing_themes)
+    # Set themes (replace existing)
+    photo["themes"] = list(themes)
 
     # Store prediction metadata for auditability
     photo["theme_predictions"] = {

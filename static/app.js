@@ -18,6 +18,7 @@ const manageThemesBtn = document.getElementById('manage-themes-btn');
 const scanBtn = document.getElementById('scan-btn');
 const syncBtn = document.getElementById('sync-btn');
 const analyzeBtn = document.getElementById('analyze-btn');
+const downloadBtn = document.getElementById('download-btn');
 const progressContainer = document.getElementById('progress-container');
 const progressFill = document.getElementById('progress-fill');
 const progressText = document.getElementById('progress-text');
@@ -46,7 +47,9 @@ let currentTheme = null;
 let currentQuality = null;
 let syncPollInterval = null;
 let analyzePollInterval = null;
-let selectedPhotos = new Set();
+let downloadPollInterval = null;
+let selectedPhotos = new Set(); // Temporary UI selection (for theme assignment)
+let checkedPhotos = new Set(); // Persistent checked state (for batch downloads)
 let lastClickedIndex = null;
 let themes = [];
 let photoElements = [];
@@ -134,6 +137,7 @@ function setupEventListeners() {
         currentYear = yearSelect.value;
         syncBtn.disabled = !currentYear;
         analyzeBtn.disabled = !currentYear;
+        downloadBtn.disabled = !currentYear;
         clearSelection();
 
         if (currentYear) {
@@ -176,6 +180,23 @@ function setupEventListeners() {
         } catch (err) {
             alert(`Analysis failed: ${err.message}`);
             analyzeBtn.disabled = false;
+            progressContainer.classList.add('hidden');
+        }
+    });
+
+    // Download button
+    downloadBtn.addEventListener('click', async () => {
+        if (!currentYear) return;
+
+        downloadBtn.disabled = true;
+        progressContainer.classList.remove('hidden');
+
+        try {
+            await fetch(`/api/download/${currentYear}`, { method: 'POST' });
+            startDownloadPolling();
+        } catch (err) {
+            alert(`Download failed: ${err.message}`);
+            downloadBtn.disabled = false;
             progressContainer.classList.add('hidden');
         }
     });
@@ -344,6 +365,7 @@ async function loadYears() {
 async function loadPhotos(year, theme = null, quality = null) {
     photoGrid.innerHTML = '<p class="placeholder">Loading photos...</p>';
     photoElements = [];
+    checkedPhotos.clear(); // Clear checked state when loading new photos
 
     let url = `/api/photos/${year}`;
     const params = new URLSearchParams();
@@ -370,15 +392,6 @@ async function loadPhotos(year, theme = null, quality = null) {
         item.dataset.photoId = photo.id;
         item.dataset.index = index;
 
-        // Add quality-based classes
-        const photoQuality = photo.quality || {};
-        if (photoQuality.is_good_photo) {
-            item.classList.add('good-photo');
-        }
-        if (photoQuality.burst_group_id && !photoQuality.is_burst_best) {
-            item.classList.add('burst-duplicate');
-        }
-
         if (photo.has_thumbnail) {
             const img = document.createElement('img');
             img.src = `/api/thumbnail/${photo.id}`;
@@ -388,15 +401,6 @@ async function loadPhotos(year, theme = null, quality = null) {
         } else {
             item.classList.add('loading');
             item.title = photo.name;
-        }
-
-        // Add quality star badge for good photos
-        if (photoQuality.is_good_photo) {
-            const starBadge = document.createElement('div');
-            starBadge.className = 'quality-star';
-            starBadge.innerHTML = '&#9733;';
-            starBadge.title = `Quality: ${photoQuality.overall_score?.toFixed(1) || 'N/A'}`;
-            item.appendChild(starBadge);
         }
 
         // Add theme badges
@@ -413,14 +417,31 @@ async function loadPhotos(year, theme = null, quality = null) {
             item.appendChild(badgeContainer);
         }
 
-        // Add click handler for selection
-        item.addEventListener('click', (e) => handlePhotoClick(e, photo.id, index));
+        // Add click handler for selection (but not on checkbox)
+        item.addEventListener('click', (e) => {
+            // Ignore clicks on checkbox
+            if (!e.target.closest('.checkbox')) {
+                handlePhotoClick(e, photo.id, index);
+            }
+        });
 
-        // Add checkmark overlay
-        const checkmark = document.createElement('div');
-        checkmark.className = 'checkmark';
-        checkmark.innerHTML = '&#10003;';
-        item.appendChild(checkmark);
+        // Add checkbox for checked state (persistent)
+        const checkbox = document.createElement('div');
+        checkbox.className = 'checkbox';
+        checkbox.innerHTML = '';
+        checkbox.title = 'Check for batch processing';
+        checkbox.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleCheckboxClick(photo.id, index);
+        });
+        item.appendChild(checkbox);
+
+        // Load checked state
+        if (photo.checked) {
+            item.classList.add('checked');
+            checkedPhotos.add(photo.id);
+            checkbox.innerHTML = '&#10003;';
+        }
 
         photoGrid.appendChild(item);
         photoElements.push({ element: item, photo });
@@ -496,6 +517,41 @@ function startAnalyzePollling() {
                 progressContainer.classList.add('hidden');
                 progressFill.style.width = '0%';
             }, 3000);
+        }
+    }, 500);
+}
+
+/**
+ * Start polling for download progress
+ */
+function startDownloadPolling() {
+    if (downloadPollInterval) {
+        clearInterval(downloadPollInterval);
+    }
+
+    downloadPollInterval = setInterval(async () => {
+        const status = await fetch(`/api/download/status`).then(r => r.json());
+
+        progressFill.style.width = `${status.percent}%`;
+        progressText.textContent = `Downloading: ${status.completed}/${status.total} (${status.percent}%) - ${status.current_file}`;
+
+        if (!status.is_running) {
+            clearInterval(downloadPollInterval);
+            downloadPollInterval = null;
+            downloadBtn.disabled = false;
+
+            // Show completion message
+            if (status.error) {
+                progressText.textContent = `Download failed: ${status.error}`;
+            } else {
+                progressText.textContent = `Download complete: ${status.total} photos saved to ${status.download_path}`;
+            }
+
+            // Hide progress after a delay
+            setTimeout(() => {
+                progressContainer.classList.add('hidden');
+                progressFill.style.width = '0%';
+            }, 5000);
         }
     }, 500);
 }
@@ -593,6 +649,72 @@ function handlePhotoClick(event, photoId, index) {
 }
 
 /**
+ * Handle checkbox click for checked state (persistent)
+ */
+async function handleCheckboxClick(photoId, index) {
+    const pe = photoElements[index];
+    if (!pe) return;
+
+    const isCurrentlyChecked = checkedPhotos.has(photoId);
+    const newCheckedState = !isCurrentlyChecked;
+
+    // Update UI immediately
+    if (newCheckedState) {
+        checkedPhotos.add(photoId);
+        pe.element.classList.add('checked');
+        pe.element.querySelector('.checkbox').innerHTML = '&#10003;';
+    } else {
+        checkedPhotos.delete(photoId);
+        pe.element.classList.remove('checked');
+        pe.element.querySelector('.checkbox').innerHTML = '';
+    }
+
+    // Persist to backend
+    try {
+        await fetch(`/api/photos/${photoId}/checked`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ checked: newCheckedState })
+        });
+    } catch (err) {
+        console.error('Failed to update checked state:', err);
+        // Revert UI on error
+        if (newCheckedState) {
+            checkedPhotos.delete(photoId);
+            pe.element.classList.remove('checked');
+            pe.element.querySelector('.checkbox').innerHTML = '';
+        } else {
+            checkedPhotos.add(photoId);
+            pe.element.classList.add('checked');
+            pe.element.querySelector('.checkbox').innerHTML = '&#10003;';
+        }
+    }
+}
+
+/**
+ * Select a single photo by index, clearing any existing selection
+ */
+function selectSinglePhoto(index) {
+    if (index < 0 || index >= photoElements.length) return;
+
+    // Clear existing selection
+    selectedPhotos.clear();
+    document.querySelectorAll('.photo-item.selected').forEach(el => {
+        el.classList.remove('selected');
+    });
+
+    const pe = photoElements[index];
+    selectedPhotos.add(pe.photo.id);
+    pe.element.classList.add('selected');
+    lastClickedIndex = index;
+
+    // Scroll into view if needed
+    pe.element.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+    updateSelectionUI();
+}
+
+/**
  * Clear photo selection
  */
 function clearSelection() {
@@ -621,38 +743,90 @@ function updateSelectionUI() {
 }
 
 /**
+ * Update theme badges on a photo element in place
+ */
+function updatePhotoThemeBadges(pe, newThemes) {
+    // Update in-memory data
+    pe.photo.themes = newThemes;
+
+    // Remove existing badge container
+    const existing = pe.element.querySelector('.theme-badges');
+    if (existing) existing.remove();
+
+    // Add new badges if any
+    if (newThemes.length > 0) {
+        const badgeContainer = document.createElement('div');
+        badgeContainer.className = 'theme-badges';
+        newThemes.forEach(t => {
+            const badge = document.createElement('span');
+            badge.className = 'theme-badge';
+            badge.textContent = t;
+            badgeContainer.appendChild(badge);
+        });
+        pe.element.appendChild(badgeContainer);
+    }
+}
+
+/**
  * Assign theme to selected photos
  */
-async function assignThemeToSelected(themeName) {
+async function assignThemeToSelected(themeName, advanceToNext = false) {
     if (selectedPhotos.size === 0) return;
 
+    const nextIndex = advanceToNext ? (lastClickedIndex !== null ? lastClickedIndex + 1 : 0) : -1;
     const photoIds = Array.from(selectedPhotos);
 
-    await fetch('/api/photos/bulk/themes', {
+    // Update DOM immediately
+    for (const pe of photoElements) {
+        if (selectedPhotos.has(pe.photo.id)) {
+            updatePhotoThemeBadges(pe, [themeName]);
+        }
+    }
+
+    // Advance or clear selection immediately
+    if (advanceToNext && nextIndex >= 0 && nextIndex < photoElements.length) {
+        selectSinglePhoto(nextIndex);
+    } else {
+        clearSelection();
+    }
+
+    // Persist to backend in background
+    fetch('/api/photos/bulk/themes', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             photo_ids: photoIds,
             themes: [themeName],
-            mode: 'add'
+            mode: 'set'
         })
-    });
-
-    // Refresh photos and themes
-    await loadPhotos(currentYear, currentTheme, currentQuality);
-    await loadThemes();
-    clearSelection();
+    }).then(() => loadThemes());
 }
 
 /**
  * Clear themes from selected photos (mark as unthemed)
  */
-async function clearThemesFromSelected() {
+async function clearThemesFromSelected(advanceToNext = false) {
     if (selectedPhotos.size === 0) return;
 
+    const nextIndex = advanceToNext ? (lastClickedIndex !== null ? lastClickedIndex + 1 : 0) : -1;
     const photoIds = Array.from(selectedPhotos);
 
-    await fetch('/api/photos/bulk/themes', {
+    // Update DOM immediately
+    for (const pe of photoElements) {
+        if (selectedPhotos.has(pe.photo.id)) {
+            updatePhotoThemeBadges(pe, []);
+        }
+    }
+
+    // Advance or clear selection immediately
+    if (advanceToNext && nextIndex >= 0 && nextIndex < photoElements.length) {
+        selectSinglePhoto(nextIndex);
+    } else {
+        clearSelection();
+    }
+
+    // Persist to backend in background
+    fetch('/api/photos/bulk/themes', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -660,12 +834,7 @@ async function clearThemesFromSelected() {
             themes: [],
             mode: 'set'
         })
-    });
-
-    // Refresh photos and themes
-    await loadPhotos(currentYear, currentTheme, currentQuality);
-    await loadThemes();
-    clearSelection();
+    }).then(() => loadThemes());
 }
 
 /**
@@ -771,21 +940,66 @@ function setupKeyboardShortcuts() {
             return;
         }
 
-        // Only process shortcuts if photos are selected
-        if (selectedPhotos.size === 0) return;
-
-        // U - clear themes (unthemed)
-        if (e.key === 'u' || e.key === 'U') {
+        // Arrow keys - navigate between photos
+        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
             e.preventDefault();
-            clearThemesFromSelected();
+            if (photoElements.length === 0) return;
+
+            let nextIndex;
+            if (lastClickedIndex === null) {
+                nextIndex = e.key === 'ArrowRight' ? 0 : photoElements.length - 1;
+            } else {
+                nextIndex = e.key === 'ArrowRight' ? lastClickedIndex + 1 : lastClickedIndex - 1;
+            }
+
+            if (nextIndex >= 0 && nextIndex < photoElements.length) {
+                selectSinglePhoto(nextIndex);
+            }
             return;
         }
 
-        // 1-9 - assign theme by number
+        // Spacebar - toggle checked state on selected photos
+        if (e.key === ' ') {
+            e.preventDefault();
+            if (selectedPhotos.size === 0) return;
+
+            for (let i = 0; i < photoElements.length; i++) {
+                const pe = photoElements[i];
+                if (selectedPhotos.has(pe.photo.id)) {
+                    handleCheckboxClick(pe.photo.id, i);
+                }
+            }
+            return;
+        }
+
+        // F - open full-size photo in new tab
+        if (e.key === 'f' || e.key === 'F') {
+            e.preventDefault();
+            if (selectedPhotos.size === 0) return;
+
+            const photoId = lastClickedIndex !== null
+                ? photoElements[lastClickedIndex].photo.id
+                : Array.from(selectedPhotos)[0];
+
+            window.open(`/api/photo/${photoId}/full`, '_blank');
+            return;
+        }
+
+        // Only process theme shortcuts if photos are selected
+        if (selectedPhotos.size === 0) return;
+
+        // U - clear themes (unthemed) and advance
+        if (e.key === 'u' || e.key === 'U') {
+            e.preventDefault();
+            clearThemesFromSelected(true);
+            return;
+        }
+
+        // 1-9 - assign theme by number and advance to next photo
         const num = parseInt(e.key);
         if (num >= 1 && num <= 9 && num <= themes.length) {
             e.preventDefault();
-            assignThemeToSelected(themes[num - 1].name);
+            assignThemeToSelected(themes[num - 1].name, true);
         }
     });
 }

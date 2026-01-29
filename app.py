@@ -227,6 +227,18 @@ def bulk_set_themes():
     return jsonify({"success": True, "updated": updated})
 
 
+@app.route("/api/photos/<photo_id>/checked", methods=["PUT"])
+def set_photo_checked(photo_id):
+    """Set checked state for a single photo (for batch processing)."""
+    data = request.json or {}
+    checked = data.get("checked", False)
+
+    if photo_service.set_photo_checked(photo_id, checked):
+        return jsonify({"success": True, "checked": checked})
+    else:
+        return jsonify({"error": "Photo not found"}), 404
+
+
 @app.route("/api/photos/<int:year>")
 def get_photos(year):
     """Get all photo metadata for a year, optionally filtered by theme and/or quality."""
@@ -245,6 +257,27 @@ def get_thumbnail(photo_id):
         return send_file(thumbnail_path, mimetype="image/jpeg")
 
     return jsonify({"error": "Thumbnail not found"}), 404
+
+
+@app.route("/api/photo/<photo_id>/full")
+def get_full_photo(photo_id):
+    """Serve the full-size photo from Dropbox inline in the browser."""
+    if not dropbox_client.is_authenticated():
+        return jsonify({"error": "Not authenticated"}), 401
+
+    photo = photo_service.get_photo_by_id(photo_id)
+    if not photo:
+        return jsonify({"error": "Photo not found"}), 404
+
+    try:
+        import io
+        _, file_bytes = dropbox_client.download_file(photo["path"])
+        ext = photo["name"].rsplit(".", 1)[-1].lower() if "." in photo["name"] else "jpeg"
+        mime = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+                "heic": "image/heic", "gif": "image/gif", "webp": "image/webp"}.get(ext, "image/jpeg")
+        return send_file(io.BytesIO(file_bytes), mimetype=mime, download_name=photo["name"])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/sync/<int:year>", methods=["POST"])
@@ -360,6 +393,10 @@ def analyze_year_quality(year):
                         quality_data = scorer.analyze_photo(image_bytes, photo["id"])
                         photo_service.update_photo_quality(photo["id"], quality_data)
 
+                        # Auto-check good photos for batch processing
+                        if quality_data.get("is_good_photo"):
+                            photo_service.set_photo_checked(photo["id"], True)
+
                 except Exception as e:
                     print(f"Error analyzing {photo['name']}: {e}")
 
@@ -471,6 +508,125 @@ def theme_classifier_status():
     return jsonify({
         "available": classifier.is_available,
         "metadata": metadata,
+    })
+
+
+# --- Download API ---
+
+
+# Track download progress
+class DownloadProgress:
+    """Track download progress."""
+
+    def __init__(self):
+        self.total = 0
+        self.completed = 0
+        self.current_file = ""
+        self.is_running = False
+        self.error = None
+        self.download_path = ""
+
+    def to_dict(self):
+        return {
+            "total": self.total,
+            "completed": self.completed,
+            "current_file": self.current_file,
+            "is_running": self.is_running,
+            "error": self.error,
+            "download_path": self.download_path,
+            "percent": int((self.completed / self.total * 100) if self.total > 0 else 0),
+        }
+
+
+download_progress = DownloadProgress()
+
+
+@app.route("/api/download/status")
+def download_status():
+    """Get download progress."""
+    return jsonify(download_progress.to_dict())
+
+
+@app.route("/api/download/<int:year>", methods=["POST"])
+def download_checked_photos(year):
+    """Download all checked photos for a year, organized by theme."""
+    global download_progress
+
+    if download_progress.is_running:
+        return jsonify({"error": "Download already in progress"}), 409
+
+    if not dropbox_client.is_authenticated():
+        return jsonify({"error": "Not authenticated"}), 401
+
+    def run_download():
+        global download_progress
+        import os
+        from pathlib import Path
+
+        # Get all checked photos for this year
+        photos = photo_service.get_photos_for_year(year)
+        checked_photos = [p for p in photos if p.get("checked", False)]
+
+        download_progress.total = 0
+        download_progress.completed = 0
+        download_progress.is_running = True
+        download_progress.error = None
+
+        # Count total downloads (photos can be in multiple themes)
+        for photo in checked_photos:
+            themes = photo.get("themes", [])
+            if themes:
+                download_progress.total += len(themes)
+            else:
+                download_progress.total += 1
+
+        try:
+            # Base download directory
+            base_dir = Path("/download")
+            download_progress.download_path = str(base_dir / str(year))
+
+            # Download each photo
+            for photo in checked_photos:
+                themes = photo.get("themes", [])
+                if not themes:
+                    themes = ["unthemed"]
+
+                for theme in themes:
+                    download_progress.current_file = f"{theme}/{photo['name']}"
+
+                    try:
+                        # Create directory structure: /download/[year]/[theme]/
+                        theme_dir = base_dir / str(year) / theme
+                        theme_dir.mkdir(parents=True, exist_ok=True)
+
+                        # Download file from Dropbox
+                        file_path = theme_dir / photo["name"]
+
+                        # Skip if already exists
+                        if not file_path.exists():
+                            file_bytes = dropbox_client.download_file(photo["path"])
+                            with open(file_path, "wb") as f:
+                                f.write(file_bytes)
+
+                    except Exception as e:
+                        print(f"Error downloading {photo['name']} to {theme}: {e}")
+
+                    download_progress.completed += 1
+
+        except Exception as e:
+            download_progress.error = str(e)
+            print(f"Download error: {e}")
+        finally:
+            download_progress.is_running = False
+            download_progress.current_file = ""
+
+    thread = threading.Thread(target=run_download)
+    thread.daemon = True
+    thread.start()
+
+    return jsonify({
+        "success": True,
+        "message": f"Started downloading checked photos for year {year}",
     })
 
 
